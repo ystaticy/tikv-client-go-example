@@ -70,27 +70,25 @@ func main() {
 	currentTime := uint64(time.Now().Unix())
 	log.Info("test----- :", zap.Uint64("currentTime", currentTime))
 
-	for i := 0; i < 100; i++ {
-		now := oracle.ComposeTS(p, l)
-		nowMinusOffset := oracle.GetTimeFromTS(now).Add(-*gcOffset)
-		newSP := oracle.ComposeTS(oracle.GetPhysical(nowMinusOffset), 0)
-		if *updateService {
-			minSafepoint, err := pdclient.UpdateServiceGCSafePoint(ctx, "gc_worker", math.MaxInt64, newSP)
-			log.Info("minSafepoint:", zap.Uint64("minSafepoint", minSafepoint))
-			if err != nil {
-				log.Panic("update service safe point failed", zap.Error(err))
-			}
-			log.Info("update service GC safe point", zap.Uint64("SP", newSP), zap.Uint64("now", now))
-		} else {
-			_, err = pdclient.UpdateGCSafePoint(ctx, newSP)
-
-			if err != nil {
-				log.Panic("update safe point failed", zap.Error(err))
-			}
-			log.Info("update GC safe point", zap.Uint64("SP", newSP), zap.Uint64("now", now))
-
-			time.Sleep(time.Duration(5) * time.Second)
+	now := oracle.ComposeTS(p, l)
+	nowMinusOffset := oracle.GetTimeFromTS(now).Add(-*gcOffset)
+	newSP := oracle.ComposeTS(oracle.GetPhysical(nowMinusOffset), 0)
+	if *updateService {
+		minSafepoint, err := pdclient.UpdateServiceGCSafePoint(ctx, "gc_worker", math.MaxInt64, newSP)
+		log.Info("minSafepoint:", zap.Uint64("minSafepoint", minSafepoint))
+		if err != nil {
+			log.Panic("update service safe point failed", zap.Error(err))
 		}
+		log.Info("update service GC safe point", zap.Uint64("SP", newSP), zap.Uint64("now", now))
+	} else {
+		_, err = pdclient.UpdateGCSafePoint(ctx, newSP)
+
+		if err != nil {
+			log.Panic("update safe point failed", zap.Error(err))
+		}
+		log.Info("update GC safe point", zap.Uint64("SP", newSP), zap.Uint64("now", now))
+
+		time.Sleep(time.Duration(5) * time.Second)
 	}
 
 }
