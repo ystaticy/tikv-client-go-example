@@ -1,7 +1,7 @@
 
 
 port=$1
-ip_addr="172.16.5.32"
+ip_addr="127.0.0.1"
 addr="$ip_addr:$port"
 
 

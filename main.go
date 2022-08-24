@@ -18,77 +18,28 @@ package main
 
 import (
 	"context"
-	"flag"
-	"math"
+	"fmt"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"time"
-
-	"github.com/pingcap/log"
-	"github.com/tikv/client-go/v2/oracle"
-	pd "github.com/tikv/pd/client"
-	"go.uber.org/zap"
-)
-
-var (
-	ca       = flag.String("ca", "", "CA certificate path for TLS connection")
-	cert     = flag.String("cert", "", "certificate path for TLS connection")
-	key      = flag.String("key", "", "private key path for TLS connection")
-	pdAddr   = flag.String("pd", "172.16.5.32:44639", "PD address")
-	gcOffset = flag.Duration("gc-offset", time.Second*1,
-		"Set GC safe point to current time - gc-offset, default: 10s")
-	updateService = flag.Bool("update-service", false, "use new service to update min SafePoint")
 )
 
 func main() {
-	flag.Parse()
-	if *pdAddr == "" {
-		log.Panic("pd address is empty")
-	}
-	if *gcOffset == time.Duration(0) {
-		log.Panic("zero gc-offset is not allowed")
-	}
-
-	timeout := time.Second * 10
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	pdclient, err := pd.NewClientWithContext(ctx, []string{*pdAddr}, pd.SecurityOption{
-		CAPath:   *ca,
-		CertPath: *cert,
-		KeyPath:  *key,
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"127.0.0.1:42977"},
+		DialTimeout: 5 * time.Second,
 	})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	resp, err := cli.Get(ctx, "/keyspaces/tidb/", clientv3.WithPrefix())
+	defer cancel()
 	if err != nil {
-		log.Panic("create pd client failed", zap.Error(err))
-	}
-	p, l, err := pdclient.GetTS(ctx)
-	if err != nil {
-		log.Panic("get ts failed", zap.Error(err))
+		fmt.Println("get failed, err:", err)
+		return
 	}
 
-	q, err := pdclient.GetAllStores(ctx)
-	address := q[0].Address
-	log.Info("store :", zap.String("address", address))
+	fmt.Printf("aaaaa")
 
-	currentTime := uint64(time.Now().Unix())
-	log.Info("test----- :", zap.Uint64("currentTime", currentTime))
-
-	now := oracle.ComposeTS(p, l)
-	nowMinusOffset := oracle.GetTimeFromTS(now).Add(-*gcOffset)
-	newSP := oracle.ComposeTS(oracle.GetPhysical(nowMinusOffset), 0)
-	if *updateService {
-		minSafepoint, err := pdclient.UpdateServiceGCSafePoint(ctx, "gc_worker", math.MaxInt64, newSP)
-		log.Info("minSafepoint:", zap.Uint64("minSafepoint", minSafepoint))
-		if err != nil {
-			log.Panic("update service safe point failed", zap.Error(err))
-		}
-		log.Info("update service GC safe point", zap.Uint64("SP", newSP), zap.Uint64("now", now))
-	} else {
-		_, err = pdclient.UpdateGCSafePoint(ctx, newSP)
-
-		if err != nil {
-			log.Panic("update safe point failed", zap.Error(err))
-		}
-		log.Info("update GC safe point", zap.Uint64("SP", newSP), zap.Uint64("now", now))
-
-		time.Sleep(time.Duration(5) * time.Second)
+	for _, ev := range resp.Kvs {
+		fmt.Printf("get all (/sample_key/name/) - %s : %s\n", ev.Key, ev.Value)
 	}
 
 }
