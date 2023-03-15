@@ -71,7 +71,7 @@ func main() {
 		}
 		log.Info("update service GC safe point", zap.Uint64("SP", newSP), zap.Uint64("now", now))
 	} else {
-		_, err = pdclient.UpdateGCSafePoint(ctx, newSP)
+		_, err = pdclient.UpdateGCSafePointV2(ctx, 1, newSP)
 
 		if err != nil {
 			log.Panic("update safe point failed", zap.Error(err))
