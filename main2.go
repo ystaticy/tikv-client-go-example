@@ -32,13 +32,13 @@ var (
 	ca       = flag.String("ca", "", "CA certificate path for TLS connection")
 	cert     = flag.String("cert", "", "certificate path for TLS connection")
 	key      = flag.String("key", "", "private key path for TLS connection")
-	pdAddr   = flag.String("pd", "127.0.0.1:44639", "PD address")
+	pdAddr   = flag.String("pd", "127.0.0.1:2379", "PD address")
 	gcOffset = flag.Duration("gc-offset", time.Second*1,
 		"Set GC safe point to current time - gc-offset, default: 10s")
 	updateService = flag.Bool("update-service", false, "use new service to update min SafePoint")
 )
 
-func main() {
+func main1() {
 	flag.Parse()
 	if *pdAddr == "" {
 		log.Panic("pd address is empty")
