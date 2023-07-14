@@ -19,11 +19,10 @@ package main
 import (
 	"context"
 	"flag"
-	"math"
 	"time"
 
+	"github.com/pingcap/kvproto/pkg/keyspacepb"
 	"github.com/pingcap/log"
-	"github.com/tikv/client-go/v2/oracle"
 	pd "github.com/tikv/pd/client"
 	"go.uber.org/zap"
 )
@@ -32,13 +31,13 @@ var (
 	ca       = flag.String("ca", "", "CA certificate path for TLS connection")
 	cert     = flag.String("cert", "", "certificate path for TLS connection")
 	key      = flag.String("key", "", "private key path for TLS connection")
-	pdAddr   = flag.String("pd", "127.0.0.1:2379", "PD address")
+	pdAddr   = flag.String("pd", "10.2.8.37:40903", "PD address")
 	gcOffset = flag.Duration("gc-offset", time.Second*1,
 		"Set GC safe point to current time - gc-offset, default: 10s")
 	updateService = flag.Bool("update-service", false, "use new service to update min SafePoint")
 )
 
-func main1() {
+func main() {
 	flag.Parse()
 	if *pdAddr == "" {
 		log.Panic("pd address is empty")
@@ -50,6 +49,8 @@ func main1() {
 	timeout := time.Second * 10
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	defer cancel()
 	pdclient, err := pd.NewClientWithContext(ctx, []string{*pdAddr}, pd.SecurityOption{
 		CAPath:   *ca,
 		CertPath: *cert,
@@ -58,37 +59,44 @@ func main1() {
 	if err != nil {
 		log.Panic("create pd client failed", zap.Error(err))
 	}
-	p, l, err := pdclient.GetTS(ctx)
+
+	// Get gc safe point v1.
+	gcSafePointV1, err := pdclient.UpdateGCSafePoint(ctx, 0)
 	if err != nil {
-		log.Panic("get ts failed", zap.Error(err))
+		log.Panic("get gc safe point v1 from pd client failed", zap.Error(err))
+	}
+	log.Info("get gc safe point v1 from pd client.", zap.Uint64("gcSafePointV1", gcSafePointV1))
+	// update all keyspace gc safe point v2.
+
+	// get all keyspace
+	keyspaces := getAllKeyspace(pdclient)
+	for i := range keyspaces {
+		keyspaceMeta := keyspaces[i]
+		if keyspaceMeta.State != keyspacepb.KeyspaceState_ENABLED {
+			continue
+		}
+		log.Info("[gc upgrade] start gc upgrade", zap.Uint32("KeyspaceID", keyspaceMeta.Id))
+
+		// ------ do pdclient.updateGCsafepointv2(ksid,safepoint)
+		gcSafePointV2, err := pdclient.UpdateGCSafePointV2(ctx, keyspaceMeta.Id, gcSafePointV1)
+		if err != nil {
+			log.Error("[gc upgrade] update gc safe point v2 error", zap.Uint32("KeyspaceID", keyspaceMeta.Id), zap.Error(err))
+		}
+		if gcSafePointV2 != gcSafePointV1 {
+			log.Error("[gc upgrade] update gc safe point v2 error, because safe point v2 is not newest.", zap.Uint32("KeyspaceID", keyspaceMeta.Id))
+		}
 	}
 
-	q, err := pdclient.GetAllStores(ctx)
-	address := q[0].Address
-	log.Info("store :", zap.String("address", address))
+}
 
-	currentTime := uint64(time.Now().Unix())
-	log.Info("test----- :", zap.Uint64("currentTime", currentTime))
+func getAllKeyspace(pdclient pd.Client) []*keyspacepb.KeyspaceMeta {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	now := oracle.ComposeTS(p, l)
-	nowMinusOffset := oracle.GetTimeFromTS(now).Add(-*gcOffset)
-	newSP := oracle.ComposeTS(oracle.GetPhysical(nowMinusOffset), 0)
-	if *updateService {
-		minSafepoint, err := pdclient.UpdateServiceGCSafePoint(ctx, "gc_worker", math.MaxInt64, newSP)
-		log.Info("minSafepoint:", zap.Uint64("minSafepoint", minSafepoint))
-		if err != nil {
-			log.Panic("update service safe point failed", zap.Error(err))
-		}
-		log.Info("update service GC safe point", zap.Uint64("SP", newSP), zap.Uint64("now", now))
-	} else {
-		_, err = pdclient.UpdateGCSafePoint(ctx, newSP)
-
-		if err != nil {
-			log.Panic("update safe point failed", zap.Error(err))
-		}
-		log.Info("update GC safe point", zap.Uint64("SP", newSP), zap.Uint64("now", now))
-
-		time.Sleep(time.Duration(5) * time.Second)
+	watchChan, err := pdclient.WatchKeyspaces(ctx)
+	if err != nil {
+		log.Error("WatchKeyspaces error")
 	}
-
+	initialLoaded := <-watchChan
+	return initialLoaded
 }
