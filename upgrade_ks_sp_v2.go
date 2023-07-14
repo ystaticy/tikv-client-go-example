@@ -33,7 +33,7 @@ var (
 	key       = flag.String("key", "", "private key path for TLS connection")
 	pdAddr    = flag.String("pd", "127.0.0.1:43277", "PD address")
 	opType    = flag.String("op", "", "optype")
-	serviceID = flag.String("serviceid", "", "serviceid")
+	serviceID = flag.String("serviceid", "test-service", "serviceid")
 )
 
 func main() {
