@@ -28,10 +28,12 @@ import (
 )
 
 var (
-	ca     = flag.String("ca", "", "CA certificate path for TLS connection")
-	cert   = flag.String("cert", "", "certificate path for TLS connection")
-	key    = flag.String("key", "", "private key path for TLS connection")
-	pdAddr = flag.String("pd", "127.0.0.1:43277", "PD address")
+	ca        = flag.String("ca", "", "CA certificate path for TLS connection")
+	cert      = flag.String("cert", "", "certificate path for TLS connection")
+	key       = flag.String("key", "", "private key path for TLS connection")
+	pdAddr    = flag.String("pd", "127.0.0.1:43277", "PD address")
+	opType    = flag.String("op", "", "optype")
+	serviceID = flag.String("serviceid", "", "serviceid")
 )
 
 func main() {
@@ -54,6 +56,18 @@ func main() {
 		log.Panic("create pd client failed", zap.Error(err))
 	}
 
+	if *opType == "upgrade" {
+		upgradeToGCV2(ctx, pdclient)
+	} else if *opType == "updateserviceV1" {
+		updateServiceV1(ctx, pdclient)
+	} else if *opType == "updategcv1" {
+		updateGCV1(ctx, pdclient)
+	} else {
+		log.Info("please use: -op xxx")
+	}
+}
+
+func upgradeToGCV2(ctx context.Context, pdclient pd.Client) {
 	// Get gc safe point v1.
 	gcSafePointV1, err := pdclient.UpdateGCSafePoint(ctx, 0)
 	if err != nil {
@@ -82,7 +96,31 @@ func main() {
 			log.Error("[gc upgrade] update gc safe point v2 error, because safe point v2 is not newest.", zap.Uint32("KeyspaceID", keyspaceMeta.Id))
 		}
 	}
+}
 
+func updateServiceV1(ctx context.Context, pdclient pd.Client) {
+	// Get gc safe point v1.
+	gcSafePointV1, err := pdclient.UpdateGCSafePoint(ctx, 0)
+	if err != nil {
+		log.Panic("get gc safe point v1 from pd client failed", zap.Error(err))
+	}
+	log.Info("get gc safe point v1 from pd client.", zap.Uint64("gcSafePointV1", gcSafePointV1))
+	// update all keyspace gc safe point v2.
+	gcSafePointV2, err := pdclient.UpdateServiceGCSafePoint(ctx, *serviceID, 90000, gcSafePointV1)
+	if err != nil {
+		log.Error("[gc upgrade] update gc safe point v1 error", zap.Error(err))
+	} else {
+		log.Error("[gc upgrade] update gc safe point v1 succ", zap.Uint64("gcSafePointV2", gcSafePointV2))
+	}
+}
+
+func updateGCV1(ctx context.Context, pdclient pd.Client) {
+	// Get gc safe point v1.
+	gcSafePointV1, err := pdclient.UpdateGCSafePoint(ctx, 0)
+	if err != nil {
+		log.Panic("get gc safe point v1 from pd client failed", zap.Error(err))
+	}
+	log.Info("get gc safe point v1 from pd client.", zap.Uint64("gcSafePointV1", gcSafePointV1))
 }
 
 func getAllKeyspace(pdclient pd.Client) []*keyspacepb.KeyspaceMeta {
