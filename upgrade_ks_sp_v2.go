@@ -28,22 +28,16 @@ import (
 )
 
 var (
-	ca       = flag.String("ca", "", "CA certificate path for TLS connection")
-	cert     = flag.String("cert", "", "certificate path for TLS connection")
-	key      = flag.String("key", "", "private key path for TLS connection")
-	pdAddr   = flag.String("pd", "127.0.0.1:43277", "PD address")
-	gcOffset = flag.Duration("gc-offset", time.Second*1,
-		"Set GC safe point to current time - gc-offset, default: 10s")
-	updateService = flag.Bool("update-service", false, "use new service to update min SafePoint")
+	ca     = flag.String("ca", "", "CA certificate path for TLS connection")
+	cert   = flag.String("cert", "", "certificate path for TLS connection")
+	key    = flag.String("key", "", "private key path for TLS connection")
+	pdAddr = flag.String("pd", "127.0.0.1:43277", "PD address")
 )
 
 func main() {
 	flag.Parse()
 	if *pdAddr == "" {
 		log.Panic("pd address is empty")
-	}
-	if *gcOffset == time.Duration(0) {
-		log.Panic("zero gc-offset is not allowed")
 	}
 
 	timeout := time.Second * 10
@@ -82,7 +76,7 @@ func main() {
 		if err != nil {
 			log.Error("[gc upgrade] update gc safe point v2 error", zap.Uint32("KeyspaceID", keyspaceMeta.Id), zap.Error(err))
 		}
-		if gcSafePointV2 != gcSafePointV1 {
+		if gcSafePointV2 == gcSafePointV1 {
 			log.Info("[gc upgrade] update gc safe point v2 success.", zap.Uint32("KeyspaceID", keyspaceMeta.Id), zap.Uint64("gcSafePointV2", gcSafePointV2))
 		} else {
 			log.Error("[gc upgrade] update gc safe point v2 error, because safe point v2 is not newest.", zap.Uint32("KeyspaceID", keyspaceMeta.Id))
