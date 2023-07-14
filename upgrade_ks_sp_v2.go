@@ -108,9 +108,9 @@ func updateServiceV1(ctx context.Context, pdclient pd.Client) {
 	// update all keyspace gc safe point v2.
 	getServiceV1, err := pdclient.UpdateServiceGCSafePoint(ctx, *serviceID, 90000, gcSafePointV1+1)
 	if err != nil {
-		log.Error("[gc upgrade] update service safe point v1 error", zap.Error(err))
+		log.Panic("[gc upgrade] update service safe point v1 error", zap.Error(err))
 	} else {
-		log.Error("[gc upgrade] update service safe point v1 succuss", zap.Uint64("getServiceV1", getServiceV1))
+		log.Info("[gc upgrade] update service safe point v1 succuss", zap.Uint64("getServiceV1", getServiceV1))
 	}
 }
 
@@ -129,7 +129,7 @@ func getAllKeyspace(pdclient pd.Client) []*keyspacepb.KeyspaceMeta {
 
 	watchChan, err := pdclient.WatchKeyspaces(ctx)
 	if err != nil {
-		log.Error("WatchKeyspaces error")
+		log.Panic("WatchKeyspaces error")
 	}
 	initialLoaded := <-watchChan
 	return initialLoaded
