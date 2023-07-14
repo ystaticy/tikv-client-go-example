@@ -106,11 +106,11 @@ func updateServiceV1(ctx context.Context, pdclient pd.Client) {
 	}
 	log.Info("get gc safe point v1 from pd client.", zap.Uint64("gcSafePointV1", gcSafePointV1))
 	// update all keyspace gc safe point v2.
-	gcSafePointV2, err := pdclient.UpdateServiceGCSafePoint(ctx, *serviceID, 90000, gcSafePointV1)
+	getServiceV1, err := pdclient.UpdateServiceGCSafePoint(ctx, *serviceID, 90000, gcSafePointV1+1)
 	if err != nil {
-		log.Error("[gc upgrade] update gc safe point v1 error", zap.Error(err))
+		log.Error("[gc upgrade] update service safe point v1 error", zap.Error(err))
 	} else {
-		log.Error("[gc upgrade] update gc safe point v1 succ", zap.Uint64("gcSafePointV2", gcSafePointV2))
+		log.Error("[gc upgrade] update service safe point v1 succuss", zap.Uint64("getServiceV1", getServiceV1))
 	}
 }
 
