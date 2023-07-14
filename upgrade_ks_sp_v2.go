@@ -109,7 +109,7 @@ func updateServiceV1(ctx context.Context, pdclient pd.Client) {
 	// update all keyspace gc safe point v2.
 	getServiceV1, err := pdclient.UpdateServiceGCSafePoint(ctx, *serviceID, 10, now)
 	if err != nil {
-		log.Panic("[gc upgrade] update service safe point v1 error", zap.Error(err))
+		log.Panic("[gc upgrade] update service safe point v1 error", zap.String("serviceID", *serviceID), zap.Error(err))
 	} else {
 		log.Info("[gc upgrade] update service safe point v1 succuss", zap.Uint64("getServiceV1", getServiceV1))
 	}
