@@ -23,6 +23,7 @@ import (
 
 	"github.com/pingcap/kvproto/pkg/keyspacepb"
 	"github.com/pingcap/log"
+	"github.com/tikv/client-go/v2/oracle"
 	pd "github.com/tikv/pd/client"
 	"go.uber.org/zap"
 )
@@ -99,14 +100,14 @@ func upgradeToGCV2(ctx context.Context, pdclient pd.Client) {
 }
 
 func updateServiceV1(ctx context.Context, pdclient pd.Client) {
-	// Get gc safe point v1.
-	gcSafePointV1, err := pdclient.UpdateGCSafePoint(ctx, 0)
+	p, l, err := pdclient.GetTS(ctx)
 	if err != nil {
-		log.Panic("get gc safe point v1 from pd client failed", zap.Error(err))
+		log.Panic("get ts failed", zap.Error(err))
 	}
-	log.Info("get gc safe point v1 from pd client.", zap.Uint64("gcSafePointV1", gcSafePointV1))
+	now := oracle.ComposeTS(p, l)
+	log.Info("get gc safe point v1 from pd client.", zap.Uint64("gcSafePointV1", now))
 	// update all keyspace gc safe point v2.
-	getServiceV1, err := pdclient.UpdateServiceGCSafePoint(ctx, *serviceID, 90000, gcSafePointV1+1)
+	getServiceV1, err := pdclient.UpdateServiceGCSafePoint(ctx, *serviceID, 10, now)
 	if err != nil {
 		log.Panic("[gc upgrade] update service safe point v1 error", zap.Error(err))
 	} else {
