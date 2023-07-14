@@ -83,6 +83,8 @@ func main() {
 			log.Error("[gc upgrade] update gc safe point v2 error", zap.Uint32("KeyspaceID", keyspaceMeta.Id), zap.Error(err))
 		}
 		if gcSafePointV2 != gcSafePointV1 {
+			log.Info("[gc upgrade] update gc safe point v2 success.", zap.Uint32("KeyspaceID", keyspaceMeta.Id), zap.Uint64("gcSafePointV2", gcSafePointV2))
+		} else {
 			log.Error("[gc upgrade] update gc safe point v2 error, because safe point v2 is not newest.", zap.Uint32("KeyspaceID", keyspaceMeta.Id))
 		}
 	}
