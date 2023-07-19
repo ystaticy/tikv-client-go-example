@@ -119,7 +119,7 @@ func upgradeKeyspaceToGCV2(ctx context.Context, pdclient pd.Client, keyspaceID u
 		log.Error("[gc upgrade] update gc safe point v2 error", zap.Uint32("KeyspaceID", keyspaceID), zap.Error(err))
 	}
 
-	serviceSafePointV2, err := pdclient.UpdateServiceSafePointV2(ctx, keyspaceID, "gc_worker", 90, gcSafePointV1)
+	serviceSafePointV2, err := pdclient.UpdateServiceSafePointV2(ctx, keyspaceID, gcWorkerServiceSafePointID, int64(math.MaxInt64), gcSafePointV1)
 	if err != nil {
 		log.Error("[gc upgrade] update gc safe point v2 error", zap.Uint32("KeyspaceID", keyspaceID), zap.Error(err))
 	}
