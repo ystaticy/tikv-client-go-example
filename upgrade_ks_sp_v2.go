@@ -92,16 +92,7 @@ func upgradeAllToGCV2(ctx context.Context, pdclient pd.Client) {
 		}
 		log.Info("[gc upgrade] start gc upgrade", zap.Uint32("KeyspaceID", keyspaceMeta.Id))
 
-		// ------ do pdclient.updateGCsafepointv2(ksid,safepoint)
-		gcSafePointV2, err := pdclient.UpdateGCSafePointV2(ctx, keyspaceMeta.Id, gcSafePointV1)
-		if err != nil {
-			log.Error("[gc upgrade] update gc safe point v2 error", zap.Uint32("KeyspaceID", keyspaceMeta.Id), zap.Error(err))
-		}
-		if gcSafePointV2 == gcSafePointV1 {
-			log.Info("[gc upgrade] update gc safe point v2 success.", zap.Uint32("KeyspaceID", keyspaceMeta.Id), zap.Uint64("gcSafePointV2", gcSafePointV2))
-		} else {
-			log.Error("[gc upgrade] update gc safe point v2 error, because safe point v2 is not newest.", zap.Uint32("KeyspaceID", keyspaceMeta.Id))
-		}
+		upgradeKeyspaceToGCV2(ctx, pdclient, keyspaceMeta.Id)
 	}
 }
 
@@ -112,21 +103,16 @@ func upgradeKeyspaceToGCV2(ctx context.Context, pdclient pd.Client, keyspaceID u
 		log.Panic("get gc safe point v1 from pd client failed", zap.Error(err))
 	}
 	log.Info("[gc upgrade] start gc upgrade. Get gc safe point v1 from pd client.", zap.Uint64("gcSafePointV1", gcSafePointV1), zap.Uint32("keyspaceID", keyspaceID))
-	// update keyspace gc safe point v2.
 
 	gcSafePointV2, err := pdclient.UpdateGCSafePointV2(ctx, keyspaceID, gcSafePointV1)
 	if err != nil {
 		log.Error("[gc upgrade] update gc safe point v2 error", zap.Uint32("KeyspaceID", keyspaceID), zap.Error(err))
 	}
 
-	serviceSafePointV2, err := pdclient.UpdateServiceSafePointV2(ctx, keyspaceID, gcWorkerServiceSafePointID, int64(math.MaxInt64), gcSafePointV1)
-	if err != nil {
-		log.Error("[gc upgrade] update gc safe point v2 error", zap.Uint32("KeyspaceID", keyspaceID), zap.Error(err))
-	}
-	if gcSafePointV2 == gcSafePointV1 && serviceSafePointV2 == gcSafePointV1 {
+	if gcSafePointV2 == gcSafePointV1 {
 		log.Info("[gc upgrade] update gc safe point v2 success.", zap.Uint32("KeyspaceID", keyspaceID))
 	} else {
-		log.Error("[gc upgrade] update gc safe point v2 error, because safe point v2 is not newest.", zap.Uint32("KeyspaceID", keyspaceID), zap.Uint64("serviceSafePointV2", serviceSafePointV2), zap.Uint64("gcSafePointV2", gcSafePointV2))
+		log.Error("[gc upgrade] update gc safe point v2 error, because safe point v2 is not newest.", zap.Uint32("KeyspaceID", keyspaceID), zap.Uint64("gcSafePointV2", gcSafePointV2))
 	}
 }
 
