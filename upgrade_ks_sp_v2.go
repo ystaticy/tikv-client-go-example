@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"math"
 	"time"
 
 	"github.com/pingcap/kvproto/pkg/keyspacepb"
@@ -29,12 +30,13 @@ import (
 )
 
 var (
-	ca        = flag.String("ca", "", "CA certificate path for TLS connection")
-	cert      = flag.String("cert", "", "certificate path for TLS connection")
-	key       = flag.String("key", "", "private key path for TLS connection")
-	pdAddr    = flag.String("pd", "127.0.0.1:43277", "PD address")
-	opType    = flag.String("op", "", "optype")
-	serviceID = flag.String("serviceid", "test-service", "serviceid")
+	ca         = flag.String("ca", "", "CA certificate path for TLS connection")
+	cert       = flag.String("cert", "", "certificate path for TLS connection")
+	key        = flag.String("key", "", "private key path for TLS connection")
+	pdAddr     = flag.String("pd", "127.0.0.1:43277", "PD address")
+	opType     = flag.String("op", "", "optype")
+	serviceID  = flag.String("serviceid", "test-service", "serviceid")
+	keyspaceID = flag.Uint64("keyspaceid", math.MaxUint64, "serviceid")
 )
 
 func main() {
@@ -59,6 +61,8 @@ func main() {
 
 	if *opType == "upgradeAll" {
 		upgradeAllToGCV2(ctx, pdclient)
+	} else if *opType == "upgradeKeyspace" {
+		upgradeKeyspaceToGCV2(ctx, pdclient, uint32(*keyspaceID))
 	} else if *opType == "updateserviceV1" {
 		updateServiceV1(ctx, pdclient)
 	} else if *opType == "updategcv1" {
